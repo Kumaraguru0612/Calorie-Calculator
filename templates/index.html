@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calorie Calculator · Mifflin-St Jeor &amp; Macro Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body class="d-flex flex-column">
+    <header class="hero-banner py-4 py-lg-5 mb-4 mb-lg-5">
+        <div class="container position-relative" style="z-index: 1;">
+            <div class="row align-items-center gy-3">
+                <div class="col-lg-8">
+                    <div class="privacy-pill mb-3">
+                        <i class="bi bi-shield-lock-fill text-info"></i>
+                        <span>Private by Design · Zero Personal Data Stored</span>
+                    </div>
+                    <h1 class="display-6 fw-bold mb-2">Calorie &amp; Macro Calculator</h1>
+                    <p class="mb-0 text-white-50 lead fs-6">
+                        Estimate your Basal Metabolic Rate (BMR) with the Mifflin-St Jeor equation,
+                        Total Daily Energy Expenditure (TDEE), and personalized daily macronutrient targets.
+                    </p>
+                </div>
+                <div class="col-lg-4 text-lg-end">
+                    <div class="d-inline-flex flex-wrap gap-2 justify-content-lg-end">
+                        <span class="badge rounded-pill text-bg-light px-3 py-2 fw-semibold">
+                            <i class="bi bi-calculator me-1 text-success"></i> Mifflin-St Jeor
+                        </span>
+                        <span class="badge rounded-pill text-bg-light px-3 py-2 fw-semibold">
+                            <i class="bi bi-pie-chart-fill me-1 text-primary"></i> Macro Breakdown
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container flex-grow-1 pb-5">
+        <div class="row g-4 align-items-start">
+            <!-- Input Form Column -->
+            <div class="col-lg-5">
+                <section class="premium-card p-4 p-xl-4" aria-labelledby="calculator-form-title">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span class="section-label d-block">Step 1</span>
+                            <h2 id="calculator-form-title" class="h4 fw-bold mb-0">Your Metrics &amp; Goal</h2>
+                        </div>
+                        <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                        </a>
+                    </div>
+
+                    {% if errors %}
+                        <div class="alert alert-danger rounded-4 border-0 shadow-sm mb-4" role="alert">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-exclamation-octagon-fill fs-5 mt-1"></i>
+                                <div>
+                                    <div class="fw-bold mb-1">Please fix the following input issues:</div>
+                                    <ul class="mb-0 ps-3 small">
+                                        {% for field, msg in errors.items() %}
+                                            <li>{{ msg }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <form method="POST" action="{{ url_for('index') }}" id="calorie-form" novalidate>
+                        <!-- Unit System -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-secondary">Measurement Units</label>
+                            <div class="segmented-group segmented-2" role="radiogroup" aria-label="Measurement units">
+                                <input type="radio" class="btn-check" name="unit_system" id="unit-metric" value="metric"
+                                       {% if form_data.unit_system == 'metric' %}checked{% endif %}>
+                                <label class="btn" for="unit-metric">Metric (kg / cm)</label>
+
+                                <input type="radio" class="btn-check" name="unit_system" id="unit-imperial" value="imperial"
+                                       {% if form_data.unit_system == 'imperial' %}checked{% endif %}>
+                                <label class="btn" for="unit-imperial">Imperial (lbs / ft)</label>
+                            </div>
+                        </div>
+
+                        <!-- Biological Sex -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-secondary">Biological Sex</label>
+                            <div class="segmented-group segmented-2" role="radiogroup" aria-label="Biological sex">
+                                <input type="radio" class="btn-check" name="sex" id="sex-female" value="female"
+                                       {% if form_data.sex == 'female' %}checked{% endif %}>
+                                <label class="btn" for="sex-female"><i class="bi bi-gender-female me-1"></i> Female</label>
+
+                                <input type="radio" class="btn-check" name="sex" id="sex-male" value="male"
+                                       {% if form_data.sex == 'male' %}checked{% endif %}>
+                                <label class="btn" for="sex-male"><i class="bi bi-gender-male me-1"></i> Male</label>
+                            </div>
+                            {% if errors.get('sex') %}
+                                <div class="text-danger small mt-1">{{ errors.get('sex') }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Age -->
+                        <div class="mb-3">
+                            <label for="age" class="form-label fw-semibold small text-secondary">Age (years)</label>
+                            <div class="input-group">
+                                <input type="number"
+                                       class="form-control {% if errors.get('age') %}is-invalid{% endif %}"
+                                       id="age"
+                                       name="age"
+                                       min="15"
+                                       max="100"
+                                       step="1"
+                                       placeholder="e.g., 28"
+                                       value="{{ form_data.age }}"
+                                       required>
+                                <span class="input-group-text bg-light text-muted">yrs</span>
+                                {% if errors.get('age') %}
+                                    <div class="invalid-feedback">{{ errors.get('age') }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="form-text">Supported range: 15–100 years.</div>
+                        </div>
+
+                        <!-- Metric Inputs -->
+                        <div id="metric-fields" class="{% if form_data.unit_system != 'metric' %}d-none{% endif %}">
+                            <div class="row g-3 mb-3">
+                                <div class="col-sm-6">
+                                    <label for="weight_kg" class="form-label fw-semibold small text-secondary">Weight (kg)</label>
+                                    <div class="input-group">
+                                        <input type="number"
+                                               class="form-control metric-input {% if errors.get('weight_kg') %}is-invalid{% endif %}"
+                                               id="weight_kg"
+                                               name="weight_kg"
+                                               min="30"
+                                               max="300"
+                                               step="0.1"
+                                               placeholder="e.g., 68.5"
+                                               value="{{ form_data.weight_kg }}">
+                                        <span class="input-group-text bg-light text-muted">kg</span>
+                                        {% if errors.get('weight_kg') %}
+                                            <div class="invalid-feedback">{{ errors.get('weight_kg') }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label for="height_cm" class="form-label fw-semibold small text-secondary">Height (cm)</label>
+                                    <div class="input-group">
+                                        <input type="number"
+                                               class="form-control metric-input {% if errors.get('height_cm') %}is-invalid{% endif %}"
+                                               id="height_cm"
+                                               name="height_cm"
+                                               min="100"
+                                               max="250"
+                                               step="0.1"
+                                               placeholder="e.g., 172"
+                                               value="{{ form_data.height_cm }}">
+                                        <span class="input-group-text bg-light text-muted">cm</span>
+                                        {% if errors.get('height_cm') %}
+                                            <div class="invalid-feedback">{{ errors.get('height_cm') }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Imperial Inputs -->
+                        <div id="imperial-fields" class="{% if form_data.unit_system != 'imperial' %}d-none{% endif %}">
+                            <div class="mb-3">
+                                <label for="weight_lb" class="form-label fw-semibold small text-secondary">Weight (lbs)</label>
+                                <div class="input-group">
+                                    <input type="number"
+                                           class="form-control imperial-input {% if errors.get('weight_lb') %}is-invalid{% endif %}"
+                                           id="weight_lb"
+                                           name="weight_lb"
+                                           min="66"
+                                           max="660"
+                                           step="0.1"
+                                           placeholder="e.g., 150"
+                                           value="{{ form_data.weight_lb }}">
+                                    <span class="input-group-text bg-light text-muted">lbs</span>
+                                    {% if errors.get('weight_lb') %}
+                                        <div class="invalid-feedback">{{ errors.get('weight_lb') }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-6">
+                                    <label for="height_ft" class="form-label fw-semibold small text-secondary">Height (ft)</label>
+                                    <div class="input-group">
+                                        <input type="number"
+                                               class="form-control imperial-input {% if errors.get('height_ft') %}is-invalid{% endif %}"
+                                               id="height_ft"
+                                               name="height_ft"
+                                               min="3"
+                                               max="8"
+                                               step="1"
+                                               placeholder="5"
+                                               value="{{ form_data.height_ft }}">
+                                        <span class="input-group-text bg-light text-muted">ft</span>
+                                        {% if errors.get('height_ft') %}
+                                            <div class="invalid-feedback">{{ errors.get('height_ft') }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label for="height_in" class="form-label fw-semibold small text-secondary">Height (in)</label>
+                                    <div class="input-group">
+                                        <input type="number"
+                                               class="form-control imperial-input {% if errors.get('height_in') %}is-invalid{% endif %}"
+                                               id="height_in"
+                                               name="height_in"
+                                               min="0"
+                                               max="11.9"
+                                               step="0.1"
+                                               placeholder="7"
+                                               value="{{ form_data.height_in }}">
+                                        <span class="input-group-text bg-light text-muted">in</span>
+                                        {% if errors.get('height_in') %}
+                                            <div class="invalid-feedback">{{ errors.get('height_in') }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Activity Level -->
+                        <div class="mb-3">
+                            <label for="activity_level" class="form-label fw-semibold small text-secondary">Activity Level</label>
+                            <select class="form-select {% if errors.get('activity_level') %}is-invalid{% endif %}"
+                                    id="activity_level"
+                                    name="activity_level"
+                                    required>
+                                {% for key, item in activity_levels.items() %}
+                                    <option value="{{ key }}" {% if form_data.activity_level == key %}selected{% endif %}>
+                                        {{ item.label }} (×{{ item.multiplier }}) — {{ item.description }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% if errors.get('activity_level') %}
+                                <div class="invalid-feedback">{{ errors.get('activity_level') }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Goal -->
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold small text-secondary">Primary Goal</label>
+                            <div class="segmented-group segmented-3" role="radiogroup" aria-label="Primary goal">
+                                {% for key, g in goals.items() %}
+                                    <input type="radio" class="btn-check goal-radio" name="goal" id="goal-{{ key }}" value="{{ key }}"
+                                           {% if form_data.goal == key %}checked{% endif %}>
+                                    <label class="btn" for="goal-{{ key }}">{{ g.label }}</label>
+                                {% endfor %}
+                            </div>
+                            {% if errors.get('goal') %}
+                                <div class="text-danger small mt-1">{{ errors.get('goal') }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Pace (shown for Lose or Gain) -->
+                        <div class="mb-3 {% if form_data.goal == 'maintain' %}d-none{% endif %}" id="pace-wrapper">
+                            <label class="form-label fw-semibold small text-secondary">Target Pace</label>
+                            <div class="segmented-group segmented-3" role="radiogroup" aria-label="Target pace">
+                                {% for key, p in paces.items() %}
+                                    <input type="radio" class="btn-check" name="pace" id="pace-{{ key }}" value="{{ key }}"
+                                           {% if form_data.pace == key %}checked{% endif %}>
+                                    <label class="btn" for="pace-{{ key }}">
+                                        {{ p.label }}
+                                        <span class="d-block fw-normal text-muted" style="font-size: 0.72rem;">
+                                            {{ p.kcal_delta }} kcal/day
+                                        </span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                            {% if errors.get('pace') %}
+                                <div class="text-danger small mt-1">{{ errors.get('pace') }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Macro Profile -->
+                        <div class="mb-4">
+                            <label for="macro_profile" class="form-label fw-semibold small text-secondary">Macro Split Style</label>
+                            <select class="form-select {% if errors.get('macro_profile') %}is-invalid{% endif %}"
+                                    id="macro_profile"
+                                    name="macro_profile">
+                                {% for key, mp in macro_profiles.items() %}
+                                    <option value="{{ key }}" {% if form_data.macro_profile == key %}selected{% endif %}>
+                                        {{ mp.label }} — {{ mp.description }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% if errors.get('macro_profile') %}
+                                <div class="invalid-feedback">{{ errors.get('macro_profile') }}</div>
+                            {% endif %}
+                        </div>
+
+                        <button type="submit" class="btn btn-calculate w-100">
+                            <i class="bi bi-lightning-charge-fill me-2"></i>Calculate Calories &amp; Macros
+                        </button>
+                    </form>
+                </section>
+            </div>
+
+            <!-- Results Dashboard Column -->
+            <div class="col-lg-7">
+                {% if result %}
+                    <section class="premium-card p-4 p-xl-4 mb-4" aria-live="polite">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <div>
+                                <span class="section-label d-block">Your Daily Estimate</span>
+                                <h2 class="h4 fw-bold mb-0">{{ result.goal_label }} Plan</h2>
+                            </div>
+                            <span class="badge rounded-pill text-bg-light border px-3 py-2 text-dark">
+                                {{ result.weight_kg_normalized }} kg · {{ result.height_cm_normalized }} cm
+                            </span>
+                        </div>
+
+                        <!-- Safety Warnings -->
+                        {% if result.warnings %}
+                            <div class="mb-4">
+                                {% for warning in result.warnings %}
+                                    <div class="alert alert-{{ warning.level }} rounded-4 border-0 shadow-sm mb-2" role="alert">
+                                        <div class="d-flex align-items-start gap-2">
+                                            {% if warning.level == 'danger' %}
+                                                <i class="bi bi-shield-exclamation fs-5 mt-1"></i>
+                                            {% elif warning.level == 'warning' %}
+                                                <i class="bi bi-exclamation-triangle-fill fs-5 mt-1"></i>
+                                            {% else %}
+                                                <i class="bi bi-info-circle-fill fs-5 mt-1"></i>
+                                            {% endif %}
+                                            <div>
+                                                <div class="fw-bold">{{ warning.title }}</div>
+                                                <div class="small mt-1">{{ warning.message }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Target Hero KPI -->
+                        <div class="target-hero-card mb-4">
+                            <div class="row align-items-center gy-3">
+                                <div class="col-sm-7">
+                                    <span class="text-uppercase small fw-semibold text-white-50">Recommended Daily Target</span>
+                                    <div class="target-kcal-number mt-1">
+                                        {{ "{:,}".format(result.target_calories) }}
+                                        <span class="fs-5 fw-semibold text-white-50">kcal/day</span>
+                                    </div>
+                                    <div class="mt-2 small text-white-50">
+                                        Safe minimum reference: <strong class="text-white">{{ "{:,}".format(result.safe_minimum) }} kcal/day</strong>
+                                    </div>
+                                </div>
+                                <div class="col-sm-5 text-sm-end">
+                                    <div class="d-inline-flex flex-column gap-2 align-items-sm-end">
+                                        <span class="badge rounded-pill bg-white text-dark px-3 py-2 fw-semibold">
+                                            {% if result.daily_delta == 0 %}
+                                                Maintenance (0 kcal)
+                                            {% elif result.daily_delta < 0 %}
+                                                {{ result.daily_delta }} kcal/day deficit
+                                            {% else %}
+                                                +{{ result.daily_delta }} kcal/day surplus
+                                            {% endif %}
+                                        </span>
+                                        <span class="small text-white-50">
+                                            Est. weekly change:
+                                            <strong class="text-white">
+                                                {% if result.weekly_change_kg > 0 %}+{% endif %}{{ result.weekly_change_kg }} kg
+                                                ({% if result.weekly_change_lb > 0 %}+{% endif %}{{ result.weekly_change_lb }} lb)
+                                            </strong>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BMR & TDEE Breakdown -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-sm-6">
+                                <div class="sub-card p-3 h-100">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="section-label">Basal Metabolic Rate</span>
+                                        <i class="bi bi-heart-pulse text-danger"></i>
+                                    </div>
+                                    <div class="metric-value">{{ "{:,}".format(result.bmr) }} <span class="fs-6 fw-semibold text-muted">kcal/day</span></div>
+                                    <p class="small text-muted mb-0 mt-1">
+                                        Calories burned at complete rest (Mifflin-St Jeor).
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="sub-card p-3 h-100">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="section-label">Maintenance (TDEE)</span>
+                                        <i class="bi bi-activity text-success"></i>
+                                    </div>
+                                    <div class="metric-value">{{ "{:,}".format(result.tdee) }} <span class="fs-6 fw-semibold text-muted">kcal/day</span></div>
+                                    <p class="small text-muted mb-0 mt-1">
+                                        {{ result.activity_label }} (×{{ result.activity_multiplier }}) total daily burn.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Macro Breakdown -->
+                        <div class="mb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div>
+                                <span class="section-label d-block">Daily Macronutrient Breakdown</span>
+                                <h3 class="h5 fw-bold mb-0">{{ result.macro_profile_label }}</h3>
+                            </div>
+                            <span class="small text-muted">4 kcal/g Protein &amp; Carbs · 9 kcal/g Fat</span>
+                        </div>
+
+                        <div class="macro-bar d-flex my-3" role="img"
+                             aria-label="Macro calorie distribution: {{ result.macros.protein.percent }}% protein, {{ result.macros.carbs.percent }}% carbs, {{ result.macros.fat.percent }}% fat">
+                            <div class="bg-protein" style="width: {{ result.macros.protein.percent }}%;"></div>
+                            <div class="bg-carbs" style="width: {{ result.macros.carbs.percent }}%;"></div>
+                            <div class="bg-fat" style="width: {{ result.macros.fat.percent }}%;"></div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="sub-card macro-card-protein p-3 h-100">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <span class="fw-bold small"><span class="dot-indicator bg-protein me-2"></span>Protein</span>
+                                        <span class="badge text-bg-light border">{{ result.macros.protein.percent }}%</span>
+                                    </div>
+                                    <div class="metric-value">{{ result.macros.protein.grams }}<span class="fs-6 fw-semibold text-muted"> g</span></div>
+                                    <div class="small text-muted">{{ "{:,}".format(result.macros.protein.calories) }} kcal/day</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sub-card macro-card-carbs p-3 h-100">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <span class="fw-bold small"><span class="dot-indicator bg-carbs me-2"></span>Carbs</span>
+                                        <span class="badge text-bg-light border">{{ result.macros.carbs.percent }}%</span>
+                                    </div>
+                                    <div class="metric-value">{{ result.macros.carbs.grams }}<span class="fs-6 fw-semibold text-muted"> g</span></div>
+                                    <div class="small text-muted">{{ "{:,}".format(result.macros.carbs.calories) }} kcal/day</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="sub-card macro-card-fat p-3 h-100">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <span class="fw-bold small"><span class="dot-indicator bg-fat me-2"></span>Fat</span>
+                                        <span class="badge text-bg-light border">{{ result.macros.fat.percent }}%</span>
+                                    </div>
+                                    <div class="metric-value">{{ result.macros.fat.grams }}<span class="fs-6 fw-semibold text-muted"> g</span></div>
+                                    <div class="small text-muted">{{ "{:,}".format(result.macros.fat.calories) }} kcal/day</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                {% else %}
+                    <section class="empty-state-box p-4 p-lg-5 text-center mb-4">
+                        <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
+                             style="width: 64px; height: 64px; background: var(--cc-primary-soft); color: var(--cc-primary);">
+                            <i class="bi bi-sliders2-vertical fs-3"></i>
+                        </div>
+                        <h2 class="h4 fw-bold mb-2">Ready to Estimate Your Daily Targets</h2>
+                        <p class="text-muted mx-auto mb-4" style="max-width: 480px;">
+                            Enter your age, height, weight, activity level, and goal on the left to calculate your
+                            Mifflin-St Jeor BMR, maintenance TDEE, target calories, and macronutrient split.
+                        </p>
+                        <div class="row g-3 text-start">
+                            <div class="col-sm-4">
+                                <div class="sub-card p-3 h-100">
+                                    <div class="fw-bold small mb-1"><i class="bi bi-1-circle-fill text-success me-1"></i> BMR Equation</div>
+                                    <div class="small text-muted">Uses the validated Mifflin-St Jeor formula for resting burn.</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="sub-card p-3 h-100">
+                                    <div class="fw-bold small mb-1"><i class="bi bi-2-circle-fill text-primary me-1"></i> Activity TDEE</div>
+                                    <div class="small text-muted">Scales BMR across 5 activity tiers from sedentary to extra active.</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div class="sub-card p-3 h-100">
+                                    <div class="fw-bold small mb-1"><i class="bi bi-3-circle-fill text-warning me-1"></i> Safety Checks</div>
+                                    <div class="small text-muted">Flags intakes below safe minimums or below resting BMR.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                {% endif %}
+
+                <!-- Equation & Medical Disclaimer -->
+                <section class="disclaimer-card p-4" aria-label="Medical disclaimer and privacy notice">
+                    <div class="d-flex align-items-start gap-3">
+                        <i class="bi bi-hospital fs-4 flex-shrink-0 mt-1"></i>
+                        <div>
+                            <h3 class="h6 fw-bold mb-1">Medical Disclaimer &amp; Privacy Notice</h3>
+                            <p class="small mb-2">
+                                The figures provided by this calculator are <strong>educational estimates only</strong>
+                                based on the Mifflin-St Jeor predictive equation and general population activity factors.
+                                Individual metabolism varies based on body composition, genetics, hormones, medications,
+                                and health status.
+                            </p>
+                            <p class="small mb-0">
+                                This tool does <strong>not</strong> constitute medical or nutritional advice. Consult a
+                                physician or registered dietitian before starting a calorie deficit or surplus—especially if
+                                you are under 18, pregnant, breastfeeding, elderly, managing a medical condition, or have a
+                                history of disordered eating. <strong>No personal data is stored, logged, or shared.</strong>
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <footer class="py-3 border-top bg-white mt-auto">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2 small text-muted">
+            <span>Calorie Calculator · Flask &amp; Bootstrap 5</span>
+            <span>Stateless in-memory calculation · Zero tracking</span>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script>
+        (function () {
+            const unitMetric = document.getElementById("unit-metric");
+            const unitImperial = document.getElementById("unit-imperial");
+            const metricFields = document.getElementById("metric-fields");
+            const imperialFields = document.getElementById("imperial-fields");
+            const metricInputs = document.querySelectorAll(".metric-input");
+            const imperialInputs = document.querySelectorAll(".imperial-input");
+            const goalRadios = document.querySelectorAll(".goal-radio");
+            const paceWrapper = document.getElementById("pace-wrapper");
+
+            function syncUnitVisibility() {
+                const isMetric = unitMetric.checked;
+                metricFields.classList.toggle("d-none", !isMetric);
+                imperialFields.classList.toggle("d-none", isMetric);
+
+                metricInputs.forEach((el) => {
+                    el.required = isMetric;
+                });
+                imperialInputs.forEach((el) => {
+                    if (el.id === "height_in") {
+                        el.required = false;
+                    } else {
+                        el.required = !isMetric;
+                    }
+                });
+            }
+
+            function syncPaceVisibility() {
+                const selectedGoal = document.querySelector(".goal-radio:checked");
+                const isMaintain = selectedGoal && selectedGoal.value === "maintain";
+                paceWrapper.classList.toggle("d-none", isMaintain);
+            }
+
+            unitMetric.addEventListener("change", syncUnitVisibility);
+            unitImperial.addEventListener("change", syncUnitVisibility);
+            goalRadios.forEach((radio) => radio.addEventListener("change", syncPaceVisibility));
+
+            syncUnitVisibility();
+            syncPaceVisibility();
+        })();
+    </script>
+</body>
+</html>
